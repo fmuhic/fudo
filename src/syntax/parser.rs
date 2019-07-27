@@ -76,7 +76,6 @@ impl Parser {
                     '.' => Some(Token::new(character.to_string(), TokenType::Dot, self.line_number)),
                     '-' => Some(Token::new(character.to_string(), TokenType::Minus, self.line_number)),
                     '+' => Some(Token::new(character.to_string(), TokenType::Plus, self.line_number)),
-                    ';' => Some(Token::new(character.to_string(), TokenType::Semicolon, self.line_number)),
                     '/' => Some(Token::new(character.to_string(), TokenType::Slash, self.line_number)),
                     '*' => Some(Token::new(character.to_string(), TokenType::Star, self.line_number)),
                     '!' => {
@@ -141,6 +140,7 @@ impl Parser {
                             _ => {}
                         }
                         println!("not a keyword");
+                        src_iter.reset_peek();
                         match self.parse_identifier(c, src_iter) {
                             Some(token) => return Some(token),
                             _ => {}

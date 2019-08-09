@@ -18,7 +18,7 @@ fn main() {
             let mut parser = Parser::new();
             let tokens: Vec<Token> = parser.parse(&src);
             for t in &tokens {
-                println!("{:?} : {:?}", t.literal, t.token_type);
+                println!("({:?}), {:?}) {:?}", t.line, t.column, &t.token_type);
             }
         },
         Err(e) => println!("Error: {:?}", e),

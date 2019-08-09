@@ -3,43 +3,44 @@ use super::token::TokenType;
 
 use itertools::MultiPeek;
 use std::str::Chars;
-use std::iter::Enumerate;
 use itertools::multipeek;
 
 pub struct Parser {
     line_number: u32,
+    column_number: u32,
     reserved_words: Vec<(TokenType, String)>
 }
 
 impl Parser {
     pub fn new() -> Parser {
-        let mut language_keywords = Vec::new();
-        language_keywords.push((TokenType::And, "and".to_string()));
-        language_keywords.push((TokenType::Class, "class".to_string()));
-        language_keywords.push((TokenType::Else, "else".to_string()));
-        language_keywords.push((TokenType::False, "false".to_string()));
-        language_keywords.push((TokenType::Fun, "fun".to_string()));
-        language_keywords.push((TokenType::For, "for".to_string()));
-        language_keywords.push((TokenType::If, "if".to_string()));
-        language_keywords.push((TokenType::Nil, "nil".to_string()));
-        language_keywords.push((TokenType::Or, "or".to_string()));
-        language_keywords.push((TokenType::Print, "print".to_string()));
-        language_keywords.push((TokenType::Return, "return".to_string()));
-        language_keywords.push((TokenType::Super, "super".to_string()));
-        language_keywords.push((TokenType::This, "this".to_string()));
-        language_keywords.push((TokenType::True, "true".to_string()));
-        language_keywords.push((TokenType::Var, "var".to_string()));
-        language_keywords.push((TokenType::While, "while".to_string()));
-        Parser{line_number: 1, reserved_words: language_keywords}
+        //Todo(Fudo): Inject this
+        let language_keywords = vec![
+            (TokenType::And, "and".to_string()),
+            (TokenType::Class, "class".to_string()),
+            (TokenType::Else, "else".to_string()),
+            (TokenType::False, "false".to_string()),
+            (TokenType::Fun, "fun".to_string()),
+            (TokenType::For, "for".to_string()),
+            (TokenType::If, "if".to_string()),
+            (TokenType::Nil, "nil".to_string()),
+            (TokenType::Or, "or".to_string()),
+            (TokenType::Print, "print".to_string()),
+            (TokenType::Return, "return".to_string()),
+            (TokenType::Super, "super".to_string()),
+            (TokenType::This, "this".to_string()),
+            (TokenType::True, "true".to_string()),
+            (TokenType::Var, "var".to_string()),
+            (TokenType::While, "while".to_string()),
+        ];
+        Parser{line_number: 1, column_number: 0, reserved_words: language_keywords}
     }
 
     pub fn parse(&mut self, src: &String) -> Vec<Token> {
         let mut tokens: Vec<Token> = Vec::new();
-        let mut src_iter = multipeek(src.chars().enumerate());
+        let mut src_iter = multipeek(src.chars());
         while src_iter.peek() != None {
             match self.parse_token(&mut src_iter) {
                 Some(token) => {
-                    println!("{:?}", token.literal);
                     tokens.push(token);
                 },
                 None => {
@@ -50,102 +51,111 @@ impl Parser {
         tokens
     }
 
-    fn parse_token(&mut self, src_iter: &mut MultiPeek<Enumerate<Chars>>) -> Option<Token> {
-        match src_iter.next() {
-            Some((_index, character)) => {
+    fn parse_token(&mut self, src_iter: &mut MultiPeek<Chars>) -> Option<Token> {
+        match self.advance(src_iter, 1) {
+            Some(character) => {
                 match character {
-                    ' ' => {
-                        println!("found space");
+                    ' ' | '\t' | '\n'=> {
                         None
                     },
-                    '\t' => {
-                        println!("found tab");
-                        None
-                    },
-                    '\n' => {
-                        println!("found new line");
-                        self.line_number = self.line_number + 1;
-                        None
-                    },
-                    ';' => Some(Token::new(character.to_string(), TokenType::Semicolon, self.line_number)),
-                    '(' => Some(Token::new(character.to_string(), TokenType::LeftParen, self.line_number)),
-                    ')' => Some(Token::new(character.to_string(), TokenType::RightParen, self.line_number)),
-                    '{' => Some(Token::new(character.to_string(), TokenType::LeftBrace, self.line_number)),
-                    '}' => Some(Token::new(character.to_string(), TokenType::RightBrace, self.line_number)),
-                    ',' => Some(Token::new(character.to_string(), TokenType::Comma, self.line_number)),
-                    '.' => Some(Token::new(character.to_string(), TokenType::Dot, self.line_number)),
-                    '-' => Some(Token::new(character.to_string(), TokenType::Minus, self.line_number)),
-                    '+' => Some(Token::new(character.to_string(), TokenType::Plus, self.line_number)),
-                    '/' => Some(Token::new(character.to_string(), TokenType::Slash, self.line_number)),
-                    '*' => Some(Token::new(character.to_string(), TokenType::Star, self.line_number)),
+                    ';' => Some(Token::new(TokenType::Semicolon, self.line_number, self.column_number)),
+                    '(' => Some(Token::new(TokenType::LeftParen, self.line_number, self.column_number)),
+                    ')' => Some(Token::new(TokenType::RightParen, self.line_number, self.column_number)),
+                    '{' => Some(Token::new(TokenType::LeftBrace, self.line_number, self.column_number)),
+                    '}' => Some(Token::new(TokenType::RightBrace, self.line_number, self.column_number)),
+                    ',' => Some(Token::new(TokenType::Comma, self.line_number, self.column_number)),
+                    '.' => Some(Token::new(TokenType::Dot, self.line_number, self.column_number)),
+                    '-' => Some(Token::new(TokenType::Minus, self.line_number, self.column_number)),
+                    '+' => Some(Token::new(TokenType::Plus, self.line_number, self.column_number)),
+                    '/' => Some(Token::new(TokenType::Slash, self.line_number, self.column_number)),
+                    '*' => Some(Token::new(TokenType::Star, self.line_number, self.column_number)),
                     '!' => {
                         match src_iter.peek() {
-                            Some((_, next_char)) => {
+                            Some(next_char) => {
                                 if *next_char == '=' {
                                     src_iter.next();
-                                    return Some(Token::new("!=".to_string(), TokenType::BangEqual, self.line_number));
+                                    return Some(Token::new(TokenType::BangEqual, self.line_number, self.column_number));
                                 }
                             },
                             None => {}
                         };
-                        Some(Token::new(character.to_string(), TokenType::Bang, self.line_number))
+                        Some(Token::new(TokenType::Bang, self.line_number, self.column_number))
                     },
                     '=' => {
                         match src_iter.peek() {
-                            Some((_, next_char)) => {
+                            Some(next_char) => {
                                 if *next_char == '=' {
                                     src_iter.next();
-                                    return Some(Token::new("==".to_string(), TokenType::EqualEqual, self.line_number));
+                                    return Some(Token::new(TokenType::EqualEqual, self.line_number, self.column_number));
                                 }
                             },
                             None => {}
                         };
-                        Some(Token::new(character.to_string(), TokenType::Equal, self.line_number))
+                        Some(Token::new(TokenType::Equal, self.line_number, self.column_number))
                     },
                     '<' => {
                         match src_iter.peek() {
-                            Some((_, next_char)) => {
+                            Some(next_char) => {
                                 if *next_char == '=' {
                                     src_iter.next();
-                                    return Some(Token::new("<=".to_string(), TokenType::LessEqual, self.line_number));
+                                    return Some(Token::new(TokenType::LessEqual, self.line_number, self.column_number));
                                 }
                             },
                             None => {}
                         };
-                        Some(Token::new(character.to_string(), TokenType::Less, self.line_number))
+                        Some(Token::new(TokenType::Less, self.line_number, self.column_number))
                     },
                     '>' => {
                         match src_iter.peek() {
-                            Some((_, next_char)) => {
+                            Some(next_char) => {
                                 if *next_char == '=' {
                                     src_iter.next();
-                                    return Some(Token::new(">=".to_string(), TokenType::GreaterEqual, self.line_number));
+                                    return Some(Token::new(TokenType::GreaterEqual, self.line_number, self.column_number));
                                 }
                             },
                             None => {}
                         };
-                        Some(Token::new(character.to_string(), TokenType::Greater, self.line_number))
+                        Some(Token::new(TokenType::Greater, self.line_number, self.column_number))
                     },
                     '"' => {
-                        let token = self.parse_string_literal(src_iter);
-                        src_iter.next();
-                        token
+                        match self.parse_string_literal(src_iter) {
+                            Some(literal) => {
+                                self.advance(src_iter, (literal.chars().count() + 1) as u32);
+                                return Some(Token::new(TokenType::StringLiteral(literal), self.line_number, self.column_number));
+                            },
+                            None => {
+                                //Todo(Fudo): String literal is not closed. Handle this error.
+                                None
+                            }
+                        }
                     },
                     c if character.is_digit(10) => {
-                        self.parse_numeric_literal(c, src_iter)
+                        match self.parse_numeric_literal(c, src_iter) {
+                            Some(literal) => {
+                                //Todo(Fudo): Invalid token position
+                                self.advance(src_iter, (literal.chars().count() - 1) as u32);
+                                return Some(Token::new(TokenType::NumericLiteral(literal.parse().unwrap()), self.line_number, self.column_number));
+                            }
+                            _ => {
+                                None
+                            }
+                        }
                     },
                     c if character.is_ascii_alphabetic() => {
                         match self.parse_reserved_word(c, src_iter) {
-                            Some(token) => return Some(token),
+                            Some((token_type, token_length)) => {
+                                self.advance(src_iter, (token_length - 1) as u32);
+                                return Some(Token::new(token_type, self.line_number, self.column_number));
+                            },
                             _ => {}
                         }
-                        println!("not a keyword");
-                        src_iter.reset_peek();
                         match self.parse_identifier(c, src_iter) {
-                            Some(token) => return Some(token),
+                            Some(literal) => {
+                                self.advance(src_iter, literal.chars().count() as u32);
+                                return Some(Token::new(TokenType::Identifier(literal), self.line_number, self.column_number));
+                            },
                             _ => {}
                         }
-                        println!("not a identifier");
                         None
                     },
                     _ => {
@@ -153,87 +163,103 @@ impl Parser {
                     }
                 }
             },
-            None => None
+            None => {
+                 Some(Token::new(TokenType::Eof, self.line_number, self.column_number))
+            }
         }
     }
 
-    fn parse_numeric_literal(&self, character: char, src_iter: &mut MultiPeek<Enumerate<Chars>>) -> Option<Token> {
+    fn parse_numeric_literal(&mut self, character: char, src_iter: &mut MultiPeek<Chars>) -> Option<String> {
         let mut literal: Vec<char> = Vec::new();
         literal.push(character);
         let mut next = src_iter.peek();
         while next != None {
-            let (_index, next_char) = next.unwrap();
-            if !next_char.is_digit(10) {
+            let next_char = next.unwrap();
+            if !next_char.is_digit(10) && *next_char != '.' {
                 break;
             }
             literal.push(*next_char);
-            src_iter.next();
             next = src_iter.peek();
         }
-        Some(Token::new(literal.into_iter().collect(), TokenType::NumericLiteral, self.line_number))
+        Some(literal.into_iter().collect())
     }
 
-    fn parse_string_literal(&self, src_iter: &mut MultiPeek<Enumerate<Chars>>) -> Option<Token> {
+    fn parse_string_literal(&mut self, src_iter: &mut MultiPeek<Chars>) -> Option<String> {
         let mut literal: Vec<char> = Vec::new();
         let mut next = src_iter.peek();
         while next != None {
-            let (_index, next_char) = next.unwrap();
+            let next_char = next.unwrap();
             if *next_char == '"' {
-                return Some(Token::new(literal.into_iter().collect(), TokenType::StringLiteral, self.line_number));
+                return Some(literal.into_iter().collect());
             }
             literal.push(*next_char);
-            src_iter.next();
             next = src_iter.peek();
         }
         None
     }
 
-    fn parse_reserved_word(&self, character: char, src_iter: &mut MultiPeek<Enumerate<Chars>>) -> Option<Token> {
-        let mut char_buffer: Vec<char> = Vec::new();
-        char_buffer.push(character);
+    fn parse_reserved_word(&mut self, character: char, src_iter: &mut MultiPeek<Chars>) -> Option<(TokenType, u32)> {
         for (token_type, keyword) in &self.reserved_words {
+            src_iter.reset_peek();
+            let mut current_char = character;
             let mut keywords_match = true;
-            while char_buffer.len() < keyword.len() {
-                match src_iter.peek() {
-                    Some((_, next_char)) => { char_buffer.push(*next_char); },
-                    None => { continue; }
-                }
-            }
-            for (i, keyword_letter) in keyword.chars().enumerate() {
-                if keyword_letter != char_buffer[i] {
+            for keyword_letter in keyword.chars() {
+                if keyword_letter != current_char {
                     keywords_match = false;
                     break;
+                }
+                match src_iter.peek() {
+                    Some(next_char) => { current_char = *next_char },
+                    None => { keywords_match = false; continue; }
                 }
             }
 
             if keywords_match {
-                for _ in 0..(keyword.len() - 1) {
-                    src_iter.next();
+                if !self.is_identifier(current_char) {
+                    return Some((token_type.clone(), keyword.chars().count() as u32));
                 }
-                return Some(Token::new(keyword.to_string(), *token_type, self.line_number))
             }
         }
         None
     }
 
-    fn parse_identifier(&self, character: char, src_iter: &mut MultiPeek<Enumerate<Chars>>) -> Option<Token> {
+    fn parse_identifier(&mut self, character: char, src_iter: &mut MultiPeek<Chars>) -> Option<String> {
+        src_iter.reset_peek();
         let mut literal: Vec<char> = Vec::new();
         literal.push(character);
         let mut next = src_iter.peek();
         while next != None {
-            let (_index, next_char) = next.unwrap();
-            println!("next char is {}", *next_char);
-            if !next_char.is_ascii_alphabetic() || self.is_empty_space(*next_char) || *next_char == ';' {
-                return Some(Token::new(literal.into_iter().collect(), TokenType::Identifier, self.line_number));
+            let next_char = next.unwrap();
+            if !self.is_identifier(*next_char) {
+                break
             }
             literal.push(*next_char);
-            src_iter.next();
             next = src_iter.peek();
         }
-        None       
+        return Some(literal.into_iter().collect());
     }
 
-    fn is_empty_space(&self, c: char) -> bool {
-        c == ' ' || c == '\t' || c == '\n'
+    fn advance(&mut self, src_iter: &mut MultiPeek<Chars>, amount: u32) -> Option<char> {
+        let mut next_char = None;
+        for _ in 0..amount {
+            next_char = src_iter.next();
+            match next_char {
+                Some(c) => {
+                    if c == '\n' {
+                        self.line_number = self.line_number + 1;
+                        self.column_number = 0;
+                    }
+                    else {
+                        self.column_number = self.column_number + 1;
+                    }
+                }
+                _ => {}
+            }
+        }
+        next_char
+    }
+
+    fn is_identifier(&self, c: char) -> bool {
+        c == '_' || c.is_digit(10) || c.is_ascii_alphabetic()
     }
 }

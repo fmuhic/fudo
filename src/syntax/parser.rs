@@ -151,7 +151,7 @@ impl Parser {
                         }
                         match self.parse_identifier(c, src_iter) {
                             Some(literal) => {
-                                self.advance(src_iter, literal.chars().count() as u32);
+                                self.advance(src_iter, (literal.chars().count() - 1) as u32);
                                 return Some(Token::new(TokenType::Identifier(literal), self.line_number, self.column_number));
                             },
                             _ => {}
